@@ -1,11 +1,66 @@
 import React from 'react';
-import { Alert, Dimensions, LayoutAnimation, Linking, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Button, Dimensions, LayoutAnimation, Linking, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarCodeScanner, Permissions } from 'expo';
+import { createStackNavigator, createAppContainer } from 'react-navigation';
 
-export default class App extends React.Component {
+
+class HomeScreen extends React.Component {
+  state = {
+    url: 'NONE',
+  };
+  render() {
+    const { navigation } = this.props;
+    const { navigate } = this.props.navigation;
+    this.state.url = navigation.getParam('url', this.state.url);
+    return (
+      <View style={styles.container}>
+        <Button
+          title="Go to Camera"
+          onPress={() => navigate('Camera')}
+        />
+        {this.state.url=='NONE'
+        ?<View></View>
+        :
+        <View style={styles.bottomBar}>
+          <ScrollView
+            horizontal={true}
+            keyboardShouldPersistTaps='always'>
+            <TouchableOpacity activeOpacity={1} style={styles.url} onPress={this._handlePressUrl}>
+              <Text numberOfLines={1} style={styles.urlText}>
+                {this.state.url.data}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+        }
+        <StatusBar hidden />
+      </View>
+    );
+  }
+
+  _handlePressUrl = () => {
+    Alert.alert(
+      'Open this URL?',
+      this.state.url.data,
+      [
+        {
+          text: 'Yes',
+          onPress: () => Linking.openURL(this.state.url.data),
+        },
+        { text: 'No', onPress: () => { } },
+      ],
+      { cancellable: false }
+    );
+  };
+
+  _handlePressCancel = () => {
+    this.setState({ lastURL: null });
+  };
+}
+
+class CameraScreen extends React.Component {
   state = {
     hasCamera: null,
-    lastURL: null,
   };
 
   componentDidMount() {
@@ -20,22 +75,19 @@ export default class App extends React.Component {
   };
 
   _handleBarCodeRead = result => {
-    if (result.data !== this.state.lastURL) {
-      LayoutAnimation.spring();
-      this.setState({ lastURL: result.data });
-    }
+    const { navigate } = this.props.navigation;
+    navigate('Home', { url: result });
   };
 
   render() {
     return (
       <View style={styles.container}>
-
         {this.state.hasCamera === null
           ? <Text>Requesting for camera permission</Text>
           : this.state.hasCamera === false
             ? <Text style={{ color: '#fff' }}>
               Camera permission is not granted
-                </Text>
+                  </Text>
             : <BarCodeScanner
               onBarCodeRead={this._handleBarCodeRead}
               style={{
@@ -44,58 +96,9 @@ export default class App extends React.Component {
               }}
             />
         }
-        {this._maybeRenderUrl()}
-
-        <StatusBar hidden />
       </View>
     );
   }
-
-  _handlePressUrl = () => {
-    Alert.alert(
-      'Open this URL?',
-      this.state.lastURL,
-      [
-        {
-          text: 'Yes',
-          onPress: () => Linking.openURL(this.state.lastURL),
-        },
-        { text: 'No', onPress: () => { } },
-      ],
-      { cancellable: false }
-    );
-  };
-
-  _handlePressCancel = () => {
-    this.setState({ lastURL: null });
-  };
-
-  _maybeRenderUrl = () => {
-    if (!this.state.lastURL) {
-      return;
-    }
-
-    return (
-      <View style={styles.bottomBar}>
-          <ScrollView
-            horizontal={true}
-            keyboardShouldPersistTaps='always'>
-        <TouchableOpacity activeOpacity={1} style={styles.url} onPress={this._handlePressUrl}>
-            <Text numberOfLines={1} style={styles.urlText}>
-              {this.state.lastURL}
-            </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={this._handlePressCancel}>
-          <Text style={styles.cancelButtonText}>
-            Cancel
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
 }
 
 const styles = StyleSheet.create({
@@ -103,7 +106,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000',
+    backgroundColor: '#fff',
   },
   bottomBar: {
     position: 'absolute',
@@ -121,13 +124,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 20,
   },
-  cancelButton: {
-    marginLeft: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelButtonText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 18,
-  },
 });
+
+
+const MainNavigator = createStackNavigator({
+  Home: { screen: HomeScreen },
+  Camera: { screen: CameraScreen },
+});
+
+const App = createAppContainer(MainNavigator);
+
+export default App;
